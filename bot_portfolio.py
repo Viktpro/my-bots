@@ -4,6 +4,7 @@ import asyncio
 import sys
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram.request import HTTPXRequest
 from dotenv import load_dotenv
 
 # Загружаем переменные из .env файла
@@ -11,6 +12,7 @@ load_dotenv()
 
 # Токен для портфолио бота
 TOKEN = os.environ.get('PORTFOLIO_TOKEN', '8088348800:AAEgsVU7x1w-9FBr1gS9Xx74e_sVbYyBHzU')
+PROXY = os.environ.get('PROXY')  # Например: socks5://127.0.0.1:9150
 
 # Настройка логирования
 logging.basicConfig(
@@ -244,13 +246,18 @@ async def contacts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-# ИСПРАВЛЕННАЯ ГЛАВНАЯ ФУНКЦИЯ
+# ФУНКЦИЯ ЗАПУСКА БОТА
 async def run_bot():
     """Асинхронный запуск бота"""
     logger.info(f"🚀 Запуск бота с токеном: {TOKEN[:8]}...")
 
-    # Создаём приложение
-    app = Application.builder().token(TOKEN).build()
+    # Создаём приложение с поддержкой прокси если нужно
+    if PROXY:
+        logger.info(f"🔌 Использую прокси: {PROXY}")
+        request = HTTPXRequest(proxy_url=PROXY, connection_pool_size=10)
+        app = Application.builder().token(TOKEN).request(request).build()
+    else:
+        app = Application.builder().token(TOKEN).build()
 
     # Добавляем обработчики
     app.add_handler(CommandHandler("start", start))
@@ -270,11 +277,18 @@ async def run_bot():
     logger.info("🔄 Запуск polling...")
     await app.updater.start_polling()
 
-    logger.info("🚀 Бот успешно запущен!")
+    logger.info("🚀 Бот успешно запущен и готов к работе!")
 
     # Держим бота запущенным
-    while True:
-        await asyncio.sleep(3600)  # Спим час, чтобы не завершиться
+    try:
+        while True:
+            await asyncio.sleep(3600)  # Спим час
+    except asyncio.CancelledError:
+        logger.info("🛑 Получен сигнал остановки")
+        # Корректное завершение
+        await app.updater.stop()
+        await app.stop()
+        await app.shutdown()
 
 
 def main():
@@ -282,6 +296,12 @@ def main():
     if not TOKEN:
         logger.error("❌ Ошибка: токен не найден!")
         sys.exit(1)
+
+    logger.info("=" * 50)
+    logger.info("🚀 ЗАПУСК БОТА ПОРТФОЛИО")
+    logger.info(f"📱 Бот: @vika_pro_portfolio_bot")
+    logger.info(f"🔑 Токен: {TOKEN[:8]}...{TOKEN[-4:]}")
+    logger.info("=" * 50)
 
     try:
         # Создаём и устанавливаем цикл событий
@@ -292,12 +312,14 @@ def main():
         loop.run_until_complete(run_bot())
 
     except KeyboardInterrupt:
-        logger.info("🛑 Бот остановлен пользователем")
+        logger.info("🛑 Бот остановлен пользователем (Ctrl+C)")
     except Exception as e:
         logger.error(f"❌ Критическая ошибка: {e}")
         import traceback
         logger.error(traceback.format_exc())
         sys.exit(1)
+    finally:
+        logger.info("👋 Бот завершил работу")
 
 
 if __name__ == '__main__':
