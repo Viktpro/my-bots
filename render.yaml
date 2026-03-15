@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: vika-pro-portfolio-bot
+    runtime: python
+    region: frankfurt
+    buildCommand: |
+      pip install -r requirements.txt
+    startCommand: python bot_portfolio.py
+    envVars:
+      - key: PORTFOLIO_TOKEN
+        value: 8088348800:AAEgsVU7x1w-9FBr1gS9Xx74e_sVbYyBHzU
