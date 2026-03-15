@@ -2,7 +2,6 @@ import logging
 import os
 import asyncio
 import sys
-import traceback
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 from dotenv import load_dotenv
@@ -245,71 +244,58 @@ async def contacts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-# ========== ИСПРАВЛЕННАЯ ГЛАВНАЯ ФУНКЦИЯ ==========
+# ИСПРАВЛЕННАЯ ГЛАВНАЯ ФУНКЦИЯ
+async def run_bot():
+    """Асинхронный запуск бота"""
+    logger.info(f"🚀 Запуск бота с токеном: {TOKEN[:8]}...")
+
+    # Создаём приложение
+    app = Application.builder().token(TOKEN).build()
+
+    # Добавляем обработчики
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("projects", projects_command))
+    app.add_handler(CommandHandler("skills", skills_command))
+    app.add_handler(CommandHandler("contacts", contacts_command))
+    app.add_handler(CallbackQueryHandler(button_handler))
+
+    logger.info("✅ Обработчики добавлены")
+
+    # Инициализация и запуск
+    await app.initialize()
+    await app.start()
+
+    # Запуск polling
+    logger.info("🔄 Запуск polling...")
+    await app.updater.start_polling()
+
+    logger.info("🚀 Бот успешно запущен!")
+
+    # Держим бота запущенным
+    while True:
+        await asyncio.sleep(3600)  # Спим час, чтобы не завершиться
+
+
 def main():
-    """Запускает бота портфолио с правильной обработкой asyncio"""
-
-    print("🚀 Запуск бота портфолио...")
-
-    # Настройка логирования для вывода в консоль
-    logging.basicConfig(
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        level=logging.INFO,
-        handlers=[logging.StreamHandler(sys.stdout)]
-    )
-    logger = logging.getLogger(__name__)
-
-    # Проверка токена
-    if not TOKEN or TOKEN == '8088348800:AAEgsVU7x1w-9FBr1gS9Xx74e_sVbYyBHzU':
-        logger.error("❌ Ошибка: токен не найден или используется токен по умолчанию!")
-        logger.error("Убедитесь, что переменная PORTFOLIO_TOKEN установлена в окружении Render.")
+    """Точка входа"""
+    if not TOKEN:
+        logger.error("❌ Ошибка: токен не найден!")
         sys.exit(1)
 
     try:
-        logger.info(f"✅ Токен загружен: {TOKEN[:8]}...")
-
-        # СОЗДАЁМ НОВЫЙ ЦИКЛ СОБЫТИЙ ДЛЯ PYTHON 3.14
+        # Создаём и устанавливаем цикл событий
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        logger.info("✅ Цикл событий asyncio создан")
 
-        # Создаём приложение
-        app = Application.builder().token(TOKEN).build()
-        logger.info("✅ Приложение создано")
-
-        # Добавляем обработчики команд
-        app.add_handler(CommandHandler("start", start))
-        app.add_handler(CommandHandler("help", help_command))
-        app.add_handler(CommandHandler("projects", projects_command))
-        app.add_handler(CommandHandler("skills", skills_command))
-        app.add_handler(CommandHandler("contacts", contacts_command))
-
-        # Добавляем обработчик кнопок
-        app.add_handler(CallbackQueryHandler(button_handler))
-        logger.info("✅ Обработчики добавлены")
-
-        # Инициализируем и запускаем приложение
-        logger.info("🔄 Инициализация приложения...")
-        loop.run_until_complete(app.initialize())
-
-        logger.info("🔄 Запуск приложения...")
-        loop.run_until_complete(app.start())
-
-        # Запускаем polling
-        logger.info("🔄 Запуск polling...")
-        loop.run_until_complete(app.updater.start_polling())
-
-        logger.info("🚀 Бот портфолио @vika_pro_portfolio_bot успешно запущен!")
-        logger.info("📱 Бот работает! Нажми Ctrl+C для остановки")
-
-        # Держим цикл запущенным
-        loop.run_forever()
+        # Запускаем бота
+        loop.run_until_complete(run_bot())
 
     except KeyboardInterrupt:
         logger.info("🛑 Бот остановлен пользователем")
-        sys.exit(0)
     except Exception as e:
         logger.error(f"❌ Критическая ошибка: {e}")
+        import traceback
         logger.error(traceback.format_exc())
         sys.exit(1)
 
